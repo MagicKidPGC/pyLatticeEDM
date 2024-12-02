@@ -10,10 +10,10 @@ def duration_scan(FILENAME):
     dur = []
     on_counts = []
     off_counts = []
-
+    countsToVms=0.01; # the clock period is 10 us and the ToF yAxis are in the unit of volts
     with zipfile.ZipFile(FILENAME+".zip") as zf:
         for item in zf.namelist():
-            if 'scan' in item:
+            if 'average' in item:
                 with io.TextIOWrapper(zf.open(item), encoding="utf-8") as f:
                     tree = ET.parse(f)
                     #calling the root element
@@ -56,12 +56,13 @@ def duration_scan(FILENAME):
                             if apply_tof_gate:
                                 bg = np.asarray(bg)
                                 bg_sum = np.sum(bg)
-                                counts_in_on_shots.append(c_sum-bg_sum)
+                                bg_eff=bg_sum/(bg_tof_gate_end-bg_tof_gate_start)*(tof_gate_end-tof_gate_start)
+                                counts_in_on_shots.append(c_sum-bg_eff)
 
                             else:
                                 counts_in_on_shots.append(c_sum)
                         counts_in_on_shots = np.asarray(counts_in_on_shots)
-                        on_counts.append(np.mean(counts_in_on_shots))
+                        on_counts.append(np.mean(counts_in_on_shots)*countsToVms)
 
                         counts_in_off_shots = []
                         for shot in off_data:
@@ -92,12 +93,13 @@ def duration_scan(FILENAME):
                             if apply_tof_gate:
                                 bg = np.asarray(bg)
                                 bg_sum = np.sum(bg)
-                                counts_in_off_shots.append(c_sum-bg_sum)
+                                bg_eff=bg_sum/(bg_tof_gate_end-bg_tof_gate_start)*(tof_gate_end-tof_gate_start)
+                                counts_in_off_shots.append(c_sum-bg_eff)
 
                             else:
                                 counts_in_off_shots.append(c_sum)
                         counts_in_off_shots = np.asarray(counts_in_off_shots)
-                        off_counts.append(np.mean(counts_in_off_shots))
+                        off_counts.append(np.mean(counts_in_off_shots)*countsToVms)
 
 
                 # print(len(dur), len(on_counts), len(off_counts))
@@ -109,7 +111,7 @@ def duration_scan(FILENAME):
                 return durarr, oncountsarr, offcountsarr
 
 
-folder = 'C:\\Users\\u0140952\\Desktop\\CCM\\LatticeEDM\\analysis\\September2024\\2\\'
+#folder = 'C:\\Users\\u0140952\\Desktop\\CCM\\LatticeEDM\\analysis\\September2024\\2\\'
 
 apply_tof_gate = True
 tof_gate_start = 1900
@@ -118,11 +120,21 @@ bg_tof_gate_start = 5000
 bg_tof_gate_end = 6000
 
 
-scan1 = '008_DurationScan_V0V1V2V3_004'
-duration1, oncounts1, offcounts1 = duration_scan(folder+scan1)
+scan1 = '002_DurationScan_V0_001'
+duration1, oncounts1, offcounts1 = duration_scan(scan1)
 ratio1 = oncounts1 / offcounts1
 difference1 = oncounts1 - offcounts1 - np.min(oncounts1 - offcounts1)
 
+print(oncounts1)
+print(offcounts1)
+print(ratio1)
+plt.figure(0)
+plt.plot(duration1, oncounts1)
+plt.plot(duration1, offcounts1)
+plt.xlabel(r'Slowing duration ($\mu$s)')
+plt.ylabel('gated ToF area (V.ms)')
+plt.legend(["onShots","offShots"])
+plt.show()
 # plt.plot(duration1, ratio1)
 # plt.xlabel(r'Slowing duration ($\mu$s)')
 # plt.ylabel('Ratio on_counts / off_counts')
@@ -147,9 +159,13 @@ print('Background: %.2e' % bg)
 print('Total number of scattered photons:', R*duration1[-1]*1e-6)
 
 # # Generate fitted y data
+plt.figure(1)
 ratio1_fit = func(duration1, *params)
-plt.plot(duration1, ratio1)
+plt.scatter(duration1, ratio1)
 plt.plot(duration1, ratio1_fit)
 plt.xlabel(r'Slowing duration ($\mu$s)')
 plt.ylabel('Ratio on_counts / off_counts')
+plt.xlim(0,100)
+plt.ylim(0,2)
 plt.show()
+print(ratio1)
